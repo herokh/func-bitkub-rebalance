@@ -2,6 +2,7 @@
 using Hero.AutoTrading.Bitkub.Enums;
 using Hero.AutoTrading.Domain.Contracts;
 using Microsoft.Extensions.Configuration;
+using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,9 +14,10 @@ namespace Hero.AutoTrading.Domain.Implementations
         private readonly IConfiguration _configuration;
         private readonly IBitkubHttpService _bitkubHttpService;
 
-        private readonly string _rebalanceCrypto;
-        private readonly string _rebalanceStableCoin;
-        private readonly string _rebalanceTickerSymbol;
+        private readonly string _cryptoSymbol;
+        private readonly string _stableSymbol;
+        private readonly string _tickerSymbol;
+        private readonly decimal _minimumBuyAmount;
         private readonly StringBuilder _loggingBuilder;
 
         public AssetsRebalancing(IBitkubHttpService bitkubHttpService, 
@@ -23,9 +25,10 @@ namespace Hero.AutoTrading.Domain.Implementations
         {
             _bitkubHttpService = bitkubHttpService;
             _configuration = configuration;
-            _rebalanceCrypto = _configuration["RebalanceSettings:crypto"] ?? string.Empty;
-            _rebalanceStableCoin = _configuration["RebalanceSettings:stableCoin"] ?? string.Empty;
-            _rebalanceTickerSymbol = _configuration["RebalanceSettings:TickerSymbol"] ?? string.Empty;
+            _cryptoSymbol = _configuration["RebalanceSettings:CryptoSymbol"] ?? string.Empty;
+            _stableSymbol = _configuration["RebalanceSettings:StableSymbol"] ?? string.Empty;
+            _minimumBuyAmount = Convert.ToDecimal(_configuration["RebalanceSettings:MinimumBuyAmount"]);
+            _tickerSymbol = _configuration["RebalanceSettings:TickerSymbol"] ?? string.Empty;
             _loggingBuilder = new StringBuilder();
         }
 
@@ -40,17 +43,17 @@ namespace Hero.AutoTrading.Domain.Implementations
             }
 
             var cryptoBalance = availableBalances
-                .FirstOrDefault(x => x.Key.Equals(_rebalanceCrypto))
+                .FirstOrDefault(x => x.Key.Equals(_cryptoSymbol))
                 .Value;
             var stableCoinBalance = availableBalances
-                .FirstOrDefault(x => x.Key.Equals(_rebalanceStableCoin))
+                .FirstOrDefault(x => x.Key.Equals(_stableSymbol))
                 .Value;
 
-            var tickers = await _bitkubHttpService.GetMarketTickers(_rebalanceTickerSymbol);
+            var tickers = await _bitkubHttpService.GetMarketTickers(_tickerSymbol);
             var tickerInfo = tickers.First().Value;
             var averagePrice = (tickerInfo.HighestBid + tickerInfo.LowestAsk) / 2;
 
-            _loggingBuilder.AppendLine($"Ticker {_rebalanceTickerSymbol}");
+            _loggingBuilder.AppendLine($"Ticker {_tickerSymbol}");
             _loggingBuilder.AppendLine($"Highest Bid {tickerInfo.HighestBid.ToString("C")} Lowest Ask {tickerInfo.LowestAsk.ToString("C")}");
 
             var cryptoValue = cryptoBalance * averagePrice;
@@ -78,7 +81,7 @@ namespace Hero.AutoTrading.Domain.Implementations
 
                 _loggingBuilder.AppendLine($"Sell price {diffSell.ToString("C")}");
 
-                var sellResult = await _bitkubHttpService.CreateSellOrder(_rebalanceTickerSymbol, diffSell, EnumOrderType.Market);
+                var sellResult = await _bitkubHttpService.CreateSellOrder(_tickerSymbol, diffSell, EnumOrderType.Market);
 
                 _loggingBuilder.AppendLine($"Sell result {sellResult}");
             }
@@ -90,9 +93,16 @@ namespace Hero.AutoTrading.Domain.Implementations
 
                 _loggingBuilder.AppendLine($"Buy price {diffBuy.ToString("C")}");
 
-                var buyResult = await _bitkubHttpService.CreateBuyOrder(_rebalanceTickerSymbol, diffBuy, EnumOrderType.Market);
+                if (diffBuy > _minimumBuyAmount)
+                {
+                    var buyResult = await _bitkubHttpService.CreateBuyOrder(_tickerSymbol, diffBuy, EnumOrderType.Market);
 
-                _loggingBuilder.AppendLine($"Buy result {buyResult}");
+                    _loggingBuilder.AppendLine($"Buy result {buyResult}");
+                }
+                else
+                {
+                    _loggingBuilder.AppendLine($"Skip to create buy order. The amount is lower than {_minimumBuyAmount}");
+                }
             }
             else
             {
