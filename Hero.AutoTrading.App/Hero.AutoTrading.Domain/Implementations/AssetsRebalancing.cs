@@ -17,7 +17,7 @@ namespace Hero.AutoTrading.Domain.Implementations
         private readonly string _cryptoSymbol;
         private readonly string _stableSymbol;
         private readonly string _tickerSymbol;
-        private readonly decimal _minimumBuyAmount;
+        private readonly decimal _minimumAmountOrder;
         private readonly StringBuilder _loggingBuilder;
 
         public AssetsRebalancing(IBitkubHttpService bitkubHttpService, 
@@ -27,7 +27,7 @@ namespace Hero.AutoTrading.Domain.Implementations
             _configuration = configuration;
             _cryptoSymbol = _configuration["RebalanceSettings:CryptoSymbol"] ?? string.Empty;
             _stableSymbol = _configuration["RebalanceSettings:StableSymbol"] ?? string.Empty;
-            _minimumBuyAmount = Convert.ToDecimal(_configuration["RebalanceSettings:MinimumBuyAmount"]);
+            _minimumAmountOrder = Convert.ToDecimal(_configuration["RebalanceSettings:MinimumAmountOrder"]);
             _tickerSymbol = _configuration["RebalanceSettings:TickerSymbol"] ?? string.Empty;
             _loggingBuilder = new StringBuilder();
         }
@@ -81,9 +81,16 @@ namespace Hero.AutoTrading.Domain.Implementations
 
                 _loggingBuilder.AppendLine($"Sell price {diffSell.ToString("C")}");
 
-                var sellResult = await _bitkubHttpService.CreateSellOrder(_tickerSymbol, diffSell, EnumOrderType.Market);
+                if (diffSell > _minimumAmountOrder)
+                {
+                    var sellResult = await _bitkubHttpService.CreateSellOrder(_tickerSymbol, diffSell, EnumOrderType.Market);
 
-                _loggingBuilder.AppendLine($"Sell result {sellResult}");
+                    _loggingBuilder.AppendLine($"Sell result {sellResult}");
+                }
+                else
+                {
+                    _loggingBuilder.AppendLine($"Skip to create sell order. The amount is lower than {_minimumAmountOrder}");
+                }
             }
             else if (cryptoValue < (rebalanceMark - rebalanceRate))
             {
@@ -93,7 +100,7 @@ namespace Hero.AutoTrading.Domain.Implementations
 
                 _loggingBuilder.AppendLine($"Buy price {diffBuy.ToString("C")}");
 
-                if (diffBuy > _minimumBuyAmount)
+                if (diffBuy > _minimumAmountOrder)
                 {
                     var buyResult = await _bitkubHttpService.CreateBuyOrder(_tickerSymbol, diffBuy, EnumOrderType.Market);
 
@@ -101,12 +108,13 @@ namespace Hero.AutoTrading.Domain.Implementations
                 }
                 else
                 {
-                    _loggingBuilder.AppendLine($"Skip to create buy order. The amount is lower than {_minimumBuyAmount}");
+                    _loggingBuilder.AppendLine($"Skip to create buy order. The amount is lower than {_minimumAmountOrder}");
                 }
             }
             else
             {
                 _loggingBuilder.AppendLine("Skip for trading");
+
                 // do nothing
             }
 
