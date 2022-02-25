@@ -1,6 +1,7 @@
 ﻿using Hero.AutoTrading.Bitkub.DTOs;
 using Hero.AutoTrading.Bitkub.Utils;
-using Microsoft.Extensions.Configuration;
+using Hero.AutoTrading.BitkuBb.Contracts;
+using Microsoft.Extensions.Options;
 using System;
 using System.Net.Http;
 using System.Text;
@@ -11,12 +12,12 @@ namespace Hero.AutoTrading.Bitkub.Services
 {
     public abstract class BitkubHttpServiceBase
     {
-        private readonly IConfiguration _configuration;
+        private readonly BitkubConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
-        public BitkubHttpServiceBase(IConfiguration configuration,
+        public BitkubHttpServiceBase(IOptions<BitkubConfiguration> bitkubConfiguration,
             IHttpClientFactory httpClientFactory)
         {
-            _configuration = configuration;
+            _configuration = bitkubConfiguration.Value;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -38,9 +39,9 @@ namespace Hero.AutoTrading.Bitkub.Services
 
         public virtual async Task<object> ExecuteSecureEndpoint<T>(string endpoint, T request = default) where T : IBitkubRequest
         {
-            var baseUrl = _configuration["Bitkub:BaseUrl"];
-            var apiKey = _configuration["Bitkub:ApiKey"];
-            var secretKey = _configuration["Bitkub:ApiSecret"];
+            var baseUrl = _configuration.BaseUrl;
+            var apiKey = _configuration.ApiKey;
+            var secretKey = _configuration.ApiSecret;
 
             var client = _httpClientFactory.CreateClient();
             client.BaseAddress = new Uri(baseUrl);
@@ -58,10 +59,12 @@ namespace Hero.AutoTrading.Bitkub.Services
 
             var res = await client.PostAsync(endpoint, payload);
 
-            using var resStream = await res.Content.ReadAsStreamAsync();
-            var message = await JsonSerializer.DeserializeAsync<object>(resStream);
+            var resString = await res.Content.ReadAsStringAsync();
+            var message = JsonSerializer.Deserialize<object>(resString);
+            var doc = JsonDocument.Parse(resString);
+            var errorCode = doc.RootElement.GetProperty("error").GetInt32();
 
-            if (res.IsSuccessStatusCode)
+            if (res.IsSuccessStatusCode && errorCode == 0)
             {
                 return message;
             }
@@ -73,7 +76,7 @@ namespace Hero.AutoTrading.Bitkub.Services
 
         public virtual async Task<object> ExecutePublicEndpoint(string endpoint, IBitkubRequest request = default)
         {
-            var baseUrl = _configuration["Bitkub:BaseUrl"];
+            var baseUrl = _configuration.BaseUrl;
 
             var client = _httpClientFactory.CreateClient();
             client.BaseAddress = new Uri(baseUrl);

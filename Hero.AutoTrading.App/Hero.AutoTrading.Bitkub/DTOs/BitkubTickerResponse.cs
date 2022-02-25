@@ -2,7 +2,7 @@
 
 namespace Hero.AutoTrading.Bitkub.DTOs
 {
-    public class BitkubTickerResponse
+    public class BitkubTickerResponse : BitkubResponseBase
     {
         [JsonPropertyName("lowestAsk")]
         public decimal LowestAsk { get; set; }

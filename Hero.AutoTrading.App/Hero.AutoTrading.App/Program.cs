@@ -4,7 +4,6 @@ using Hero.AutoTrading.Domain.Contracts;
 using Hero.AutoTrading.Domain.Implementations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.Threading.Tasks;
 
 namespace Hero.AutoTrading.App

@@ -1,7 +1,7 @@
 ﻿using Hero.AutoTrading.Bitkub.DTOs;
 using Hero.AutoTrading.Bitkub.Enums;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -12,11 +12,11 @@ namespace Hero.AutoTrading.Bitkub.Services
     public class BitkubHttpService : BitkubHttpServiceBase, IBitkubHttpService
     {
         private readonly bool _testMode;
-        public BitkubHttpService(IConfiguration configuration, 
+        public BitkubHttpService(IOptions<BitkubConfiguration> bitkubConfiguration,
             IHttpClientFactory httpClientFactory) 
-            : base(configuration, httpClientFactory)
+            : base(bitkubConfiguration, httpClientFactory)
         {
-            _testMode = Convert.ToBoolean(configuration["SystemSettings:TestMode"]);
+            _testMode = Convert.ToBoolean(bitkubConfiguration.Value.TestMode);
         }
 
         public async Task<string> CreateBuyOrder(string symbol, decimal amount, EnumOrderType orderType)

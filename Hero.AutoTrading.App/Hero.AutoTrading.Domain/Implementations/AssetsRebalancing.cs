@@ -1,7 +1,8 @@
 ﻿using Hero.AutoTrading.Bitkub;
 using Hero.AutoTrading.Bitkub.Enums;
 using Hero.AutoTrading.Domain.Contracts;
-using Microsoft.Extensions.Configuration;
+using Hero.AutoTrading.Domain.DTOs;
+using Microsoft.Extensions.Options;
 using System;
 using System.Linq;
 using System.Text;
@@ -11,8 +12,8 @@ namespace Hero.AutoTrading.Domain.Implementations
 {
     public class AssetsRebalancing : IAssetsRebalancing
     {
-        private readonly IConfiguration _configuration;
         private readonly IBitkubHttpService _bitkubHttpService;
+        private readonly RebalanceSettings _rebalanceSettings;
 
         private readonly string _cryptoSymbol;
         private readonly string _stableSymbol;
@@ -20,16 +21,17 @@ namespace Hero.AutoTrading.Domain.Implementations
         private readonly decimal _minimumAmountOrder;
         private readonly StringBuilder _loggingBuilder;
 
-        public AssetsRebalancing(IBitkubHttpService bitkubHttpService, 
-            IConfiguration configuration)
+        public AssetsRebalancing(IBitkubHttpService bitkubHttpService,
+            IOptions<RebalanceSettings> rebalanceSettings)
         {
             _bitkubHttpService = bitkubHttpService;
-            _configuration = configuration;
-            _cryptoSymbol = _configuration["RebalanceSettings:CryptoSymbol"] ?? string.Empty;
-            _stableSymbol = _configuration["RebalanceSettings:StableSymbol"] ?? string.Empty;
-            _minimumAmountOrder = Convert.ToDecimal(_configuration["RebalanceSettings:MinimumAmountOrder"]);
-            _tickerSymbol = _configuration["RebalanceSettings:TickerSymbol"] ?? string.Empty;
+            _rebalanceSettings = rebalanceSettings.Value;
+            _cryptoSymbol = _rebalanceSettings.CryptoSymbol ?? string.Empty;
+            _stableSymbol = _rebalanceSettings.StableSymbol ?? string.Empty;
+            _minimumAmountOrder = Convert.ToDecimal(_rebalanceSettings.MinimumAmountOrder);
+            _tickerSymbol = _rebalanceSettings.TickerSymbol ?? string.Empty;
             _loggingBuilder = new StringBuilder();
+            
         }
 
         public async Task<string> Rebalance()
