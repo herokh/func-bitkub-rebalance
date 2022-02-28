@@ -2,8 +2,11 @@
 using Hero.AutoTrading.Bitkub.Enums;
 using Hero.AutoTrading.Domain.Contracts;
 using Hero.AutoTrading.Domain.DTOs;
+using Hero.AutoTrading.Notification.Contracts;
+using Hero.AutoTrading.Notification.DTOs;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,7 +16,9 @@ namespace Hero.AutoTrading.Domain.Implementations
     public class AssetsRebalancing : IAssetsRebalancing
     {
         private readonly IBitkubHttpService _bitkubHttpService;
+        private readonly INotificationService _notificationService;
         private readonly RebalanceSettings _rebalanceSettings;
+        private readonly LineMessagingConfiguration _lineMessagingConfiguration;
 
         private readonly string _cryptoSymbol;
         private readonly string _stableSymbol;
@@ -22,16 +27,19 @@ namespace Hero.AutoTrading.Domain.Implementations
         private readonly StringBuilder _loggingBuilder;
 
         public AssetsRebalancing(IBitkubHttpService bitkubHttpService,
-            IOptions<RebalanceSettings> rebalanceSettings)
+             INotificationService notificationService,
+             IOptions<RebalanceSettings> rebalanceSettings,
+             IOptions<LineMessagingConfiguration> lineMessagingConfiguration)
         {
             _bitkubHttpService = bitkubHttpService;
+            _notificationService = notificationService;
             _rebalanceSettings = rebalanceSettings.Value;
+            _lineMessagingConfiguration = lineMessagingConfiguration.Value;
             _cryptoSymbol = _rebalanceSettings.CryptoSymbol ?? string.Empty;
             _stableSymbol = _rebalanceSettings.StableSymbol ?? string.Empty;
             _minimumAmountOrder = Convert.ToDecimal(_rebalanceSettings.MinimumAmountOrder);
             _tickerSymbol = _rebalanceSettings.TickerSymbol ?? string.Empty;
             _loggingBuilder = new StringBuilder();
-            
         }
 
         public async Task<string> Rebalance()
@@ -120,7 +128,33 @@ namespace Hero.AutoTrading.Domain.Implementations
                 // do nothing
             }
 
-            return _loggingBuilder.ToString();
+            var log = _loggingBuilder.ToString();
+            var notificationMessage = CreateNotificationMessage(log);
+            await _notificationService.PushMessages(notificationMessage);
+
+            return log;
+        }
+
+        private NotificationMessage CreateNotificationMessage(string text)
+        {
+            var to = new string[] { _lineMessagingConfiguration.OwnerUserId };
+            var messages = new List<LineMessage>
+                    {
+                        new LineMessage
+                        {
+                            Type = "text",
+                            Text = text
+                        }
+                    }.ToArray();
+
+
+            var notificationMessage = new NotificationMessage
+            {
+                To = to,
+                Messages = messages
+            };
+
+            return notificationMessage;
         }
     }
 }

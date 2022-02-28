@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hero.AutoTrading.Bitkub\Hero.AutoTrading.Bitkub.csproj" />
+    <ProjectReference Include="..\Hero.AutoTrading.Notification\Hero.AutoTrading.Notification.csproj" />
   </ItemGroup>
 
 </Project>
