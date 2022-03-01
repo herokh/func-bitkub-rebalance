@@ -27,7 +27,7 @@ namespace Hero.AutoTrading.Bitkub.Services
 
         public async Task<string> CreateSellOrder(string symbol, decimal amount, EnumOrderType orderType)
         {
-            var endpoint = _testMode ? "/api/market/place-ask/test" : "/api/market/place-ask";
+            var endpoint = _testMode ? "/api/market/place-ask/test" : "/api/market/place-ask-by-fiat";
             return await CreateOrderInternal(endpoint, symbol, amount, orderType);
         }
 
